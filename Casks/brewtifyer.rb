@@ -1,6 +1,6 @@
 cask "brewtifyer" do
-  version "1.0.0"
-  sha256 "05401c45b22768ce10d4419ef172825ea6f437df4f2dea884e28bddb02d41660"
+  version "1.0.1"
+  sha256 "7ebf3465fd03fa5bc810378257382849c6896948a200a27c3e0e726f48aadd9e"
 
   url "https://github.com/KevinCFechtel/Brewtifyer/releases/download/v#{version}/Brewtifyer-#{version}-macos-universal.zip"
   name "Brewtifyer"
