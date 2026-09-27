@@ -1,0 +1,73 @@
+name: audit
+
+# Runs on pull requests, on every push to main (this is where the release
+# workflows of the individual app repos push their generated casks), and on
+# demand.
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions: {}
+
+defaults:
+  run:
+    shell: bash -xeuo pipefail {0}
+
+# A cask push and a manually started run must not audit the same ref twice.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    # Casks are macOS-only. `brew audit --cask` must run on macOS: on Linux it
+    # loads casks it then filters away again (Homebrew/brew#22148).
+    runs-on: macos-latest
+    permissions:
+      contents: read
+    steps:
+      # NOTE: there is deliberately no `actions/checkout` step.
+      #
+      # setup-homebrew detects that this repository is named
+      # `<owner>/homebrew-<name>` and does the tap wiring itself:
+      #   * clones this repo to $(brew --repository)/Library/Taps/kevincfechtel/homebrew-tap
+      #   * moves the contents into $GITHUB_WORKSPACE and symlinks the tap path
+      #     to it, after `rm -rf "$GITHUB_WORKSPACE"/*`
+      #   * runs `brew trust` on the tap, without which Homebrew refuses to
+      #     load casks from a non-official tap and `brew audit` fails with
+      #     "No Cask with this name exists"
+      #   * checks out $GITHUB_SHA, so the audited ref is this event's ref
+      #
+      # Adding `actions/checkout` before this step is therefore useless (the
+      # checkout gets deleted) and adding it after breaks the symlink.
+      - name: Set up Homebrew
+        id: set-up-homebrew
+        uses: Homebrew/actions/setup-homebrew@1e34f2e2acaa766b7efacb8c26352e6abbb023f9 # 2026.09.13.1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Cache Homebrew Bundler RubyGems
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.set-up-homebrew.outputs.gems-path }}
+          key: ${{ runner.os }}-rubygems-${{ steps.set-up-homebrew.outputs.gems-hash }}
+          restore-keys: ${{ runner.os }}-rubygems-
+
+      # RuboCop style over the cask files. Passes on an empty Casks/.
+      - name: brew style
+        env:
+          TAP: ${{ steps.set-up-homebrew.outputs.tap-name }}
+        run: brew style --cask "$TAP"
+
+      # The check that actually matters. `--online` downloads the release
+      # artifact, verifies the sha256 against it and extracts it, so this is
+      # what catches a dead release URL, a stale checksum, or a depends_on
+      # macos: that disagrees with the app's own LSMinimumSystemVersion.
+      # Without it those break for users first. Passes on an empty Casks/.
+      - name: brew audit --online --strict
+        env:
+          TAP: ${{ steps.set-up-homebrew.outputs.tap-name }}
+        run: brew audit --cask --online --strict --tap="$TAP"

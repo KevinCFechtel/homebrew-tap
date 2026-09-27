@@ -1,0 +1,29 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+.fseventsd
+.TemporaryItems
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+Icon?
+
+# Editors / IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.netrwhist
+*.sublime-workspace
+
+# Ruby / RuboCop (brew style runs RuboCop over this repo in CI)
+.rubocop-http*
+.rubocop_cache/
+
+# Local scratch
+*.log
+tmp/
